@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Activity Box</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f0f0f0;
+    }
+
+    .container {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      padding: 20px;
+    }
+
+    .color-buttons {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .circle {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+    }
+
+    .red { background-color: red; }
+    .blue { background-color: blue; }
+    .green { background-color: green; }
+    .yellow { background-color: yellow; }
+
+    .cards-container {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      width: 100%;
+      max-width: 1000px;
+    }
+
+    .card {
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      width: 100%;
+    }
+
+    h2, h3 {
+      margin-top: 0;
+    }
+
+    p {
+      margin: 10px 0;
+    }
+
+    ul {
+      list-style-type: none;
+      padding: 0;
+    }
+
+    li {
+      padding: 5px;
+      border-bottom: 1px solid #ddd;
+    }
+
+    input {
+      padding: 8px;
+      margin-right: 10px;
+    }
+
+    button {
+      padding: 8px 16px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #ddd;
+    }
+
+    .status {
+      margin-top: 10px;
+      font-weight: bold;
+    }
+
+    .online {
+      color: green;
+    }
+
+    .offline {
+      color: red;
+    }
+
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="color-buttons">
+      <button class="circle red" onclick="updateActivityBox('Red')"></button>
+      <button class="circle blue" onclick="updateActivityBox('Blue')"></button>
+      <button class="circle green" onclick="updateActivityBox('Green')"></button>
+      <button class="circle yellow" onclick="updateActivityBox('Yellow')"></button>
+    </div>
+
+    <div class="cards-container">
+      <!-- Activity Information Card -->
+      <div class="card activity-info-card">
+        <h2>Activity Information</h2>
+        <p><strong>IP Address:</strong> <span id="ip">Loading...</span></p>
+        <p><strong>Location:</strong> <span id="location">Loading...</span></p>
+        <p><strong>Date & Time:</strong> <span id="datetime">Loading...</span></p>
+        <p><strong>Last Login:</strong> <span id="last-login">Never</span></p>
+        <p class="status"><strong>Status:</strong> <span id="online-status" class="offline">Offline</span></p>
+      </div>
+
+      <!-- Login Activity List Card -->
+      <div class="card login-activity-card">
+        <h3>Login Activity List</h3>
+        <ul id="login-activity-list">
+          <!-- Login activities will be displayed here -->
+        </ul>
+      </div>
+
+      <!-- Location Tracking Card -->
+      <div class="card location-tracking-card">
+        <h3>Location Tracking by IP</h3>
+        <input type="text" id="ip-input" placeholder="Enter IP address" />
+        <button onclick="trackLocationWithIP()">Track Location</button>
+        <p><strong>IP Address:</strong> <span id="ip-address">Enter an IP to track</span></p>
+        <p><strong>Location:</strong> <span id="ip-location">Enter an IP to track</span></p>
+        <p><strong>Latitude:</strong> <span id="ip-latitude">Enter an IP to track</span></p>
+        <p><strong>Longitude:</strong> <span id="ip-longitude">Enter an IP to track</span></p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let loginActivities = [];
+    let inactivityTimeout;
+
+    // Function to get the current date and time
+    function getDateTime() {
+      const currentDate = new Date();
+      const dateTime = currentDate.toLocaleString();
+      document.getElementById('datetime').textContent = dateTime;
+    }
+
+    // Function to get IP and location details
+    function getIPAndLocation() {
+      return fetch('https://ipinfo.io/json?token=712f4c21a25007')
+        .then(response => response.json())
+        .then(data => {
+          return {
+            ip: data.ip || 'Unable to fetch IP',
+            location: `${data.city || 'Unknown city'}, ${data.region || 'Unknown region'}, ${data.country || 'Unknown country'}`,
+            latitude: data.loc ? data.loc.split(',')[0] : 'Unknown latitude',
+            longitude: data.loc ? data.loc.split(',')[1] : 'Unknown longitude'
+          };
+        })
+        .catch(error => {
+          console.error('Error fetching IP and location:', error);
+          return { ip: 'Unable to fetch IP', location: 'Unable to fetch location', latitude: 'Unknown latitude', longitude: 'Unknown longitude' };
+        });
+    }
+
+    // Function to get current geolocation
+    function getCurrentLocation() {
+      return new Promise((resolve, reject) => {
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              const latitude = position.coords.latitude;
+              const longitude = position.coords.longitude;
+              resolve({ latitude, longitude });
+            },
+            (error) => {
+              reject('Error retrieving geolocation');
+            }
+          );
+        } else {
+          reject('Geolocation is not supported by this browser');
+        }
+      });
+    }
+
+    // Function to track location by IP address
+    function trackLocationWithIP() {
+      const ipAddress = document.getElementById('ip-input').value;
+      if (!ipAddress) {
+        alert('Please enter an IP address');
+        return;
+      }
+
+      fetch(`https://ipinfo.io/${ipAddress}/json?token=712f4c21a25007`)
+        .then(response => response.json())
+        .then(data => {
+          const location = data.loc ? `${data.city || 'Unknown city'}, ${data.region || 'Unknown region'}, ${data.country || 'Unknown country'}` : 'Location not found';
+          const latitude = data.loc ? data.loc.split(',')[0] : 'Latitude not found';
+          const longitude = data.loc ? data.loc.split(',')[1] : 'Longitude not found';
+
+          document.getElementById('ip-address').textContent = data.ip || 'IP not found';
+          document.getElementById('ip-location').textContent = location;
+          document.getElementById('ip-latitude').textContent = latitude;
+          document.getElementById('ip-longitude').textContent = longitude;
+        })
+        .catch(err => {
+          alert('Error fetching IP location: ' + err);
+        });
+    }
+
+    // Function to update the activity box when a color is clicked
+    function updateActivityBox(color) {
+      getIPAndLocation().then(data => {
+        getCurrentLocation().then(locationData => {
+          const currentDate = new Date();
+          const dateTime = currentDate.toLocaleString();
+          document.getElementById('datetime').textContent = dateTime;
+          document.getElementById('ip').textContent = data.ip;
+          document.getElementById('location').textContent = `${data.location} (Lat: ${locationData.latitude}, Long: ${locationData.longitude})`;
+          const lastLogin = currentDate.toLocaleString();
+          document.getElementById('last-login').textContent = lastLogin;
+
+          const loginActivity = {
+            color: color,
+            ip: data.ip,
+            location: data.location,
+            latitude: locationData.latitude,
+            longitude: locationData.longitude,
+            time: lastLogin,
+          };
+
+          loginActivities.push(loginActivity);
+          updateLoginActivityList();
+
+          alert(`You clicked the ${color} circle!`);
+        }).catch(err => {
+          alert(`Error fetching geolocation: ${err}`);
+        });
+      });
+    }
+
+    // Function to update the login activity list
+    function updateLoginActivityList() {
+      const activityListElement = document.getElementById('login-activity-list');
+      activityListElement.innerHTML = '';
+
+      loginActivities.forEach(activity => {
+        const listItem = document.createElement('li');
+        listItem.textContent = `${activity.color} Circle clicked at ${activity.time} | IP: ${activity.ip} | Location: ${activity.location} | Lat: ${activity.latitude}, Long: ${activity.longitude}`;
+        activityListElement.appendChild(listItem);
+      });
+    }
+
+    // Function to update online/offline status
+    function updateOnlineStatus() {
+      const statusElement = document.getElementById('online-status');
+      if (navigator.onLine) {
+        statusElement.textContent = 'Online';
+        statusElement.classList.remove('offline');
+        statusElement.classList.add('online');
+      } else {
+        statusElement.textContent = 'Offline';
+        statusElement.classList.remove('online');
+        statusElement.classList.add('offline');
+        const offlineTime = new Date().toLocaleString();
+        document.getElementById('last-login').textContent = `Last seen: ${offlineTime} (Offline)`;
+      }
+    }
+
+    // Event listeners for online/offline status
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+
+    // Set the initial status on page load
+    updateOnlineStatus();
+
+    // Function to track inactivity
+    function trackInactivity() {
+      // After 10 seconds of inactivity, mark the page as offline
+      inactivityTimeout = setTimeout(() => {
+        document.getElementById('online-status').textContent = 'Offline';
+        document.getElementById('online-status').classList.remove('online');
+        document.getElementById('online-status').classList.add('offline');
+        const offlineTime = new Date().toLocaleString();
+        document.getElementById('last-login').textContent = `Last seen: ${offlineTime} (Offline)`;
+      }, 10000);
+    }
+
+    // Reset inactivity timeout whenever there is user interaction
+    window.addEventListener('click', () => {
+      clearTimeout(inactivityTimeout);
+      updateOnlineStatus();
+      trackInactivity();
+    });
+    window.addEventListener('mousemove', () => {
+      clearTimeout(inactivityTimeout);
+      updateOnlineStatus();
+      trackInactivity();
+    });
+    window.addEventListener('keydown', () => {
+      clearTimeout(inactivityTimeout);
+      updateOnlineStatus();
+      trackInactivity();
+    });
+
+    // Set the date and time every second
+    setInterval(getDateTime, 1000);
+
+    // Start tracking inactivity when the page loads
+    trackInactivity();
+  </script>
+
+</body>
+</html>
+<script>
+    // Function to update the online/offline status
+    function updateOnlineStatus() {
+      const statusElement = document.getElementById('online-status');
+      const lastSeenElement = document.getElementById('last-login');
+  
+      if (navigator.onLine) {
+        statusElement.textContent = 'Online';
+        statusElement.classList.remove('offline');
+        statusElement.classList.add('online');
+  
+        // Clear last seen info if coming online
+        lastSeenElement.textContent = 'Currently online';
+      } else {
+        statusElement.textContent = 'Offline';
+        statusElement.classList.remove('online');
+        statusElement.classList.add('offline');
+  
+        // Save last seen in localStorage
+        const lastSeenTime = new Date().toLocaleString();
+        localStorage.setItem('lastSeen', lastSeenTime);
+  
+        // Display the last seen time
+        lastSeenElement.textContent = `Last seen: ${lastSeenTime}`;
+      }
+    }
+  
+    // Load the last seen time on page load
+    function loadLastSeen() {
+      const lastSeenElement = document.getElementById('last-login');
+      const lastSeenTime = localStorage.getItem('lastSeen');
+  
+      if (lastSeenTime) {
+        lastSeenElement.textContent = `Last seen: ${lastSeenTime}`;
+      } else {
+        lastSeenElement.textContent = 'Never logged in';
+      }
+    }
+  
+    // Event listeners for online/offline status
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+  
+    // Initialize the page on load
+    window.onload = () => {
+      loadLastSeen(); // Load last seen info
+      updateOnlineStatus(); // Update online/offline status
+    };
+  </script>
+  
+  

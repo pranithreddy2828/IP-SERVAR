@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Status</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f0f0f0;
+    }
+
+    .container {
+      display: flex;
+      justify-content: center;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .card {
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 600px;
+      text-align: center;
+    }
+
+    h2 {
+      margin-top: 0;
+    }
+
+    p {
+      margin: 10px 0;
+    }
+
+    .status {
+      margin-top: 10px;
+      font-weight: bold;
+    }
+
+    .online {
+      color: green;
+    }
+
+    .offline {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="card">
+      <h2>User Status</h2>
+      <p><strong>Status:</strong> <span id="online-status" class="offline">Offline</span></p>
+      <p><strong>IP Address:</strong> <span id="ip">Not available</span></p>
+      <p><strong>Location:</strong> <span id="location">Not available</span></p>
+      <p><strong>Date & Time:</strong> <span id="datetime">Not available</span></p>
+      <p id="last-seen" style="display: none;"><strong>Last Seen:</strong> <span>Not available</span></p>
+    </div>
+  </div>
+
+  <script>
+    // Function to update the user's online status and fetch IP/location details
+    function updateOnlineStatus() {
+      const statusElement = document.getElementById('online-status');
+      const ipElement = document.getElementById('ip');
+      const locationElement = document.getElementById('location');
+      const datetimeElement = document.getElementById('datetime');
+      const lastSeenElement = document.getElementById('last-seen');
+
+      if (navigator.onLine) {
+        statusElement.textContent = 'Online';
+        statusElement.classList.remove('offline');
+        statusElement.classList.add('online');
+        lastSeenElement.style.display = 'none';
+
+        // Fetch and display IP and location
+        fetch('https://ipinfo.io/json?token=712f4c21a25007')
+          .then(response => response.json())
+          .then(data => {
+            const ip = data.ip || 'Not available';
+            const location = `${data.city || 'Unknown city'}, ${data.region || 'Unknown region'}, ${data.country || 'Unknown country'}`;
+            const currentDate = new Date();
+            const datetime = currentDate.toLocaleString();
+
+            ipElement.textContent = ip;
+            locationElement.textContent = location;
+            datetimeElement.textContent = datetime;
+
+            // Save user details in localStorage
+            const userInfo = { ip, location, datetime };
+            localStorage.setItem('userInfo', JSON.stringify(userInfo));
+          })
+          .catch(err => {
+            console.error('Error fetching IP and location:', err);
+            ipElement.textContent = 'Error fetching IP';
+            locationElement.textContent = 'Error fetching location';
+          });
+      } else {
+        statusElement.textContent = 'Offline';
+        statusElement.classList.remove('online');
+        statusElement.classList.add('offline');
+
+        // Save and display last seen time
+        const lastSeenTime = new Date().toLocaleString();
+        lastSeenElement.style.display = 'block';
+        lastSeenElement.querySelector('span').textContent = lastSeenTime;
+        localStorage.setItem('lastSeen', lastSeenTime);
+      }
+    }
+
+    // Function to update live date and time
+    function updateDateTime() {
+      const currentDate = new Date();
+      const datetime = currentDate.toLocaleString();
+      document.getElementById('datetime').textContent = datetime;
+    }
+
+    // Load stored data and update the status
+    window.addEventListener('load', () => {
+      const storedUserInfo = JSON.parse(localStorage.getItem('userInfo'));
+      const lastSeen = localStorage.getItem('lastSeen');
+
+      if (storedUserInfo) {
+        document.getElementById('ip').textContent = storedUserInfo.ip;
+        document.getElementById('location').textContent = storedUserInfo.location;
+        document.getElementById('datetime').textContent = storedUserInfo.datetime;
+      }
+
+      if (lastSeen) {
+        const lastSeenElement = document.getElementById('last-seen');
+        lastSeenElement.style.display = 'block';
+        lastSeenElement.querySelector('span').textContent = lastSeen;
+      }
+
+      updateOnlineStatus();
+    });
+
+    // Add event listeners for online/offline changes
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+
+    // Update the date and time every second
+    setInterval(updateDateTime, 1000);
+
+  </script>
+
+</body>
+</html>
